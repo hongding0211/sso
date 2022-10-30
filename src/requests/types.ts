@@ -13,8 +13,23 @@ export interface IPostApiLogin extends IApi {
   IReq: {
     email?: string
     phone?: string
+    password: string
   }
   IRes: IResponse<{
     ticket: string
+  }>
+}
+
+export interface IPostApiRegister extends IApi {
+  IReq: {
+    email?: string
+    phone?: string
+    password: string
+    avatar: string
+  }
+  IRes: IResponse<{
+    email?: string
+    phone?: string
+    avatar: string
   }>
 }

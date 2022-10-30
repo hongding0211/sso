@@ -5,16 +5,24 @@
   "license": "MIT",
   "scripts": {
     "start": "tsc && node dist/server.js",
-    "dev": "nodemon --watch 'src/**/*' -e ts,tsx --exec 'ts-node' ./src/server.ts",
-    "lint": "yarn run eslint src/**/* --fix"
+    "dev": "nodemon --inspect src/server.ts",
+    "lint": "yarn run eslint 'src/**/*' --fix"
   },
   "dependencies": {
+    "jwa": "^2.0.0",
     "koa": "^2.13.4",
-    "koa-router": "^12.0.0"
+    "koa-bodyparser": "^4.3.0",
+    "koa-router": "^12.0.0",
+    "mongodb": "^4.11.0",
+    "sha.js": "^2.4.11",
+    "uid": "^2.0.1"
   },
   "devDependencies": {
+    "@types/jwa": "^2.0.0",
     "@types/koa": "^2.13.5",
+    "@types/koa-bodyparser": "^4.3.9",
     "@types/koa-router": "^7.4.4",
+    "@types/sha.js": "^2.4.0",
     "@typescript-eslint/eslint-plugin": "^5.41.0",
     "@typescript-eslint/parser": "^5.41.0",
     "eslint": "^8.2.0",
