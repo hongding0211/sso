@@ -3,4 +3,6 @@ export const databaseConfig = {
   dbName: 'sso',
 }
 
-export const signatureSecret = 'linmeihuashiyigemeimao'
+export const SIGNATURE_SECRET = 'linmeihuashiyigemeimao'
+
+export const COLLECTION_NAME = 'users'

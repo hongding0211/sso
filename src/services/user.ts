@@ -1,5 +1,4 @@
 import { uid } from 'uid/secure'
-import * as shajs from 'sha.js'
 
 export default class User {
   email: string
@@ -20,10 +19,9 @@ export default class User {
   }) {
     this.email = data.email || null
     this.phone = data.phone || null
+    this.password = data.password
     this.avatar = data.avatar
     this.uid = uid(32)
-    // hash password
-    this.password = shajs('sha256').update(data.password).digest('hex')
   }
 
   get() {
