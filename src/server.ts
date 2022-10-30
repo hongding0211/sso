@@ -1,13 +1,18 @@
 import * as Koa from 'koa'
-import * as Router from 'koa-router'
+import router from './router'
 
 const app = new Koa()
-const router = new Router()
 
-router.get('/', async (ctx) => {
-  ctx.body = 'Hello World'
+app.use(async (ctx, next) => {
+  const startTime = Date.now()
+
+  ctx.set('Content-Type', 'application/json')
+
+  await next()
+
+  ctx.set('x-time-cost', `${Date.now() - startTime}`)
 })
 
-app.use(router.routes())
+app.use(router)
 
 app.listen(3000)
