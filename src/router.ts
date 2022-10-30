@@ -1,11 +1,26 @@
 import * as Router from 'koa-router'
 import shajs = require('sha.js')
 import jwa = require('jwa')
+import jwt = require('jsonwebtoken')
+import * as fs from 'fs'
+import * as path from 'path'
 import Response from './requests/response'
-import { IPostApiLogin, IPostApiRegister } from './requests/types'
+import {
+  IGetApiUserInfo,
+  IPostApiValidate,
+  IPostApiLogin,
+  IPostApiRegister,
+} from './requests/types'
 import { SIGNATURE_SECRET, COLLECTION_NAME } from './config'
 import DataBase from './database'
 import User from './services/user'
+
+const priavateKey = fs.readFileSync(
+  path.join(__dirname, '../public/rsa_private_key.pem')
+)
+const publicKey = fs.readFileSync(
+  path.join(__dirname, '../public/rsa_public_key.pem')
+)
 
 const router = new Router()
 
@@ -16,14 +31,28 @@ const tickets = new Map<
   {
     uid: string
     sig: string
-    cnt: number
   }
 >()
+
+const requestCnt = new Map<string, number>()
 
 router.post('/api/login', async (ctx) => {
   const res = new Response<IPostApiLogin>()
   try {
     const { email, phone, password } = <IPostApiLogin['IReq']>ctx.request.body
+    const userKey = `${email}${phone}`
+    if (requestCnt.has(userKey)) {
+      requestCnt.set(userKey, requestCnt.get(userKey) + 1)
+      if (requestCnt.get(userKey) > 3) {
+        res.throw('Too much requests')
+        setTimeout(() => {
+          requestCnt.delete(userKey)
+        }, 60000)
+        return
+      }
+    } else {
+      requestCnt.set(userKey, 0)
+    }
     const db = new DataBase()
     const user = await db.find(COLLECTION_NAME, {
       $and: [
@@ -39,26 +68,17 @@ router.post('/api/login', async (ctx) => {
       res.throw('Wrong user name or password')
       return
     }
-    const sig = hmac.sign(
-      `${Math.floor(Date.now() / 60000)}${user[0].uid}${SIGNATURE_SECRET}`,
-      SIGNATURE_SECRET
-    )
     const ticket = shajs('sha256')
-      .update(`${Math.floor(Date.now() / 60000)}${user[0].uid}`)
+      .update(`${Date.now()}${user[0].uid}`)
       .digest('hex')
-    if (tickets.has(ticket)) {
-      tickets.get(ticket).cnt += 1
-      if (tickets.get(ticket).cnt > 3) {
-        res.throw('Too much requests')
-        return
-      }
-    } else {
-      tickets.set(ticket, {
-        uid: user[0].uid,
-        sig,
-        cnt: 0,
-      })
-    }
+    const sig = hmac.sign(
+      `${ticket}`,
+      `${Math.floor(Date.now() / 60000)}${SIGNATURE_SECRET}`
+    )
+    tickets.set(ticket, {
+      uid: user[0].uid,
+      sig,
+    })
     setTimeout(() => {
       tickets.delete(ticket)
     }, 60000)
@@ -75,7 +95,7 @@ router.post('/api/login', async (ctx) => {
 router.post('/api/register', async (ctx) => {
   const res = new Response<IPostApiRegister>()
   try {
-    const { email, phone, password, avatar } = <IPostApiRegister['IReq']>(
+    const { email, phone, password, name, avatar } = <IPostApiRegister['IReq']>(
       ctx.request.body
     )
     const db = new DataBase()
@@ -93,6 +113,7 @@ router.post('/api/register', async (ctx) => {
       email,
       phone,
       password,
+      name,
       avatar,
     })
     await db.insert(COLLECTION_NAME, [
@@ -103,10 +124,82 @@ router.post('/api/register', async (ctx) => {
     res.set({
       email,
       phone,
+      name,
       avatar,
     })
   } catch (e) {
     res.throw(e.message)
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.post('/api/validate', async (ctx) => {
+  const res = new Response<IPostApiValidate>()
+  try {
+    ctx.cookies.set('x-auth-tken', null)
+    const { ticket, maxAge } = <IPostApiValidate['IReq']>ctx.request.body
+    const user = tickets.get(ticket)
+    if (user === undefined) {
+      res.throw('Invalid ticket')
+      return
+    }
+    // validate
+    const s1 = `${Math.floor(Date.now() / 60000)}${SIGNATURE_SECRET}`
+    const s2 = `${Math.floor(Date.now() / 60000) - 1}${SIGNATURE_SECRET}`
+    if (
+      hmac.verify(ticket, user.sig, s1) ||
+      hmac.verify(ticket, user.sig, s2)
+    ) {
+      res.set({})
+      const authToken = jwt.sign(
+        {
+          uid: user.uid,
+        },
+        priavateKey,
+        {
+          // 默认提供 30 天的有效期
+          expiresIn: maxAge === undefined ? '30d' : maxAge,
+          algorithm: 'RS256',
+        }
+      )
+      ctx.cookies.set('x-auth-token', authToken)
+      tickets.delete(ticket)
+    } else {
+      res.throw('Invalid ticket')
+    }
+  } catch (e) {
+    res.throw(e.message)
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.get('/api/userInfo', async (ctx) => {
+  const res = new Response<IGetApiUserInfo>()
+  try {
+    const authToken = ctx.cookies.get('x-auth-token')
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
+    }
+    const db = new DataBase()
+    const user = await db.find(COLLECTION_NAME, {
+      uid,
+    })
+    if (user.length < 1) {
+      res.throw('User not exists')
+      ctx.status = 403
+      return
+    }
+    res.set({
+      name: user[0].name,
+      phone: user[0].phone,
+      email: user[0].email,
+      avatar: user[0].avatar,
+    })
+  } catch (e) {
+    res.throw(e.message)
+    ctx.status = 403
   } finally {
     ctx.body = res.get()
   }

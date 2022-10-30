@@ -9,17 +9,21 @@ export default class User {
 
   uid: string
 
+  name: string
+
   avatar: string
 
   constructor(data: {
     email?: string
     phone?: string
     password: string
+    name: string
     avatar: string
   }) {
     this.email = data.email || null
     this.phone = data.phone || null
     this.password = data.password
+    this.name = data.name
     this.avatar = data.avatar
     this.uid = uid(32)
   }
@@ -30,6 +34,7 @@ export default class User {
       phone: this.phone,
       password: this.password,
       uid: this.uid,
+      nane: this.name,
       avatar: this.avatar,
     }
   }

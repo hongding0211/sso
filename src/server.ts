@@ -1,5 +1,6 @@
 import * as Koa from 'koa'
 import * as bodyParser from 'koa-bodyparser'
+import logger = require('koa-logger')
 import router from './router'
 
 const app = new Koa()
@@ -15,6 +16,8 @@ app.use(async (ctx, next) => {
 })
 
 app.use(bodyParser())
+
+app.use(logger())
 
 app.use(router)
 

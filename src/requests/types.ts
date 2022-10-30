@@ -24,12 +24,32 @@ export interface IPostApiRegister extends IApi {
   IReq: {
     email?: string
     phone?: string
+    name: string
     password: string
     avatar: string
   }
   IRes: IResponse<{
     email?: string
     phone?: string
+    name: string
+    avatar: string
+  }>
+}
+
+export interface IPostApiValidate extends IApi {
+  IReq: {
+    ticket: string
+    maxAge?: string | number
+  }
+  IRes: IResponse<{}>
+}
+
+export interface IGetApiUserInfo extends IApi {
+  IReq: {}
+  IRes: IResponse<{
+    email?: string
+    phone?: string
+    name: string
     avatar: string
   }>
 }
