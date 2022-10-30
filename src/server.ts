@@ -1,13 +1,24 @@
 import * as Koa from 'koa'
-import * as Router from 'koa-router'
+import * as bodyParser from 'koa-bodyparser'
+import logger = require('koa-logger')
+import router from './router'
 
 const app = new Koa()
-const router = new Router()
 
-router.get('/', async (ctx) => {
-  ctx.body = 'Hello World'
+app.use(async (ctx, next) => {
+  const startTime = Date.now()
+
+  ctx.set('Content-Type', 'application/json')
+
+  await next()
+
+  ctx.set('x-time-cost', `${Date.now() - startTime}`)
 })
 
-app.use(router.routes())
+app.use(bodyParser())
+
+app.use(logger())
+
+app.use(router)
 
 app.listen(3000)

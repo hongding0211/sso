@@ -5,22 +5,35 @@
   "license": "MIT",
   "scripts": {
     "start": "tsc && node dist/server.js",
-    "dev": "nodemon --watch 'src/**/*' -e ts,tsx --exec 'ts-node' ./src/server.ts",
-    "lint": "yarn run eslint src/**/* --fix"
+    "dev": "nodemon --inspect src/server.ts",
+    "lint": "yarn run eslint 'src/**/*' --fix"
   },
   "dependencies": {
+    "jsonwebtoken": "^8.5.1",
+    "jwa": "^2.0.0",
     "koa": "^2.13.4",
-    "koa-router": "^12.0.0"
+    "koa-bodyparser": "^4.3.0",
+    "koa-logger": "^3.2.1",
+    "koa-router": "^12.0.0",
+    "mongodb": "^4.11.0",
+    "sha.js": "^2.4.11",
+    "uid": "^2.0.1"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^8.5.9",
+    "@types/jwa": "^2.0.0",
     "@types/koa": "^2.13.5",
+    "@types/koa-bodyparser": "^4.3.9",
+    "@types/koa-logger": "^3.1.2",
     "@types/koa-router": "^7.4.4",
+    "@types/sha.js": "^2.4.0",
     "@typescript-eslint/eslint-plugin": "^5.41.0",
     "@typescript-eslint/parser": "^5.41.0",
     "eslint": "^8.2.0",
     "eslint-config-airbnb": "19.0.4",
+    "eslint-config-airbnb-typescript": "^17.0.0",
     "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-import": "^2.25.3",
+    "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-jsx-a11y": "^6.5.1",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-react": "^7.28.0",
