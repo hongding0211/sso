@@ -39,4 +39,5 @@ const options = {
   cert: fs.readFileSync('../cert/server.cert', 'utf8'),
 }
 
-https.createServer(options, app.callback()).listen(3000)
+app.listen(3000)
+https.createServer(options, app.callback()).listen(3001)
