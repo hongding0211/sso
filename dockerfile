@@ -2,13 +2,14 @@ FROM node:16
 
 MAINTAINER keith.dh@hotmail.com
 
-WORKDIR /home/node/app
-
 EXPOSE 3000
 
-COPY / /
+WORKDIR /home/node/app
 
-RUN npm i
+COPY ./ /home/node/app
+
+RUN npm config set registry https://registry.npmmirror.com
+RUN npm install
 RUN npm run build
 
 CMD node build/index.js
