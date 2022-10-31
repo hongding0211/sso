@@ -165,6 +165,7 @@ router.post('/api/validate', async (ctx) => {
         maxAge: 30 * 60 * 60 * 1000,
         sameSite: 'none',
         secure: true,
+        httpOnly: false,
       })
       tickets.delete(ticket)
     } else {
