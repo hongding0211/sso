@@ -100,11 +100,8 @@ router.post('/api/register', async (ctx) => {
     )
     const db = new DataBase()
     if (
-      (
-        await db.find(COLLECTION_NAME, {
-          $or: [{ email }, { phone }],
-        })
-      ).length > 0
+      (email && (await db.find(COLLECTION_NAME, { email })).length > 0) ||
+      (phone && (await db.find(COLLECTION_NAME, { phone })).length > 0)
     ) {
       res.throw('User exists')
       return
