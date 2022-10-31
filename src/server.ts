@@ -1,9 +1,17 @@
 import * as Koa from 'koa'
 import * as bodyParser from 'koa-bodyparser'
 import logger = require('koa-logger')
+import cors = require('koa-cors')
 import router from './router'
 
 const app = new Koa()
+
+app.use(
+  cors({
+    credentials: true,
+    maxAge: 60 * 60 * 1000,
+  })
+)
 
 app.use(async (ctx, next) => {
   const startTime = Date.now()
