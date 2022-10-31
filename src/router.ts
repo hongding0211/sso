@@ -166,6 +166,7 @@ router.post('/api/validate', async (ctx) => {
       ctx.cookies.set('auth-token', authToken, {
         overwrite: true,
         maxAge: 30 * 60 * 60 * 1000,
+        sameSite: 'none',
       })
       tickets.delete(ticket)
     } else {
