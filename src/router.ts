@@ -15,7 +15,7 @@ import { SIGNATURE_SECRET, COLLECTION_NAME } from './config'
 import DataBase from './database'
 import User from './services/user'
 
-const priavateKey = fs.readFileSync(
+const privateKey = fs.readFileSync(
   path.join(__dirname, '../public/rsa_private_key.pem')
 )
 const publicKey = fs.readFileSync(
@@ -156,7 +156,7 @@ router.post('/api/validate', async (ctx) => {
         {
           uid: user.uid,
         },
-        priavateKey,
+        privateKey,
         {
           // 默认提供 30 天的有效期
           expiresIn: maxAge === undefined ? '30d' : maxAge,
