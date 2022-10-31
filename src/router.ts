@@ -137,7 +137,7 @@ router.post('/api/register', async (ctx) => {
 router.post('/api/validate', async (ctx) => {
   const res = new Response<IPostApiValidate>()
   try {
-    ctx.cookies.set('x-auth-token', null)
+    ctx.cookies.set('auth-token', null)
     const { ticket, maxAge } = <IPostApiValidate['IReq']>ctx.request.body
     const user = tickets.get(ticket)
     if (user === undefined) {
@@ -163,9 +163,7 @@ router.post('/api/validate', async (ctx) => {
           algorithm: 'RS256',
         }
       )
-      ctx.cookies.set('x-auth-token', authToken, {
-        sameSite: 'none',
-        secure: true,
+      ctx.cookies.set('auth-token', authToken, {
         overwrite: true,
         maxAge: 30 * 60 * 60 * 1000,
       })
@@ -183,7 +181,7 @@ router.post('/api/validate', async (ctx) => {
 router.get('/api/userInfo', async (ctx) => {
   const res = new Response<IGetApiUserInfo>()
   try {
-    const authToken = ctx.cookies.get('x-auth-token')
+    const authToken = ctx.cookies.get('auth-token')
     const { uid } = jwt.verify(authToken, publicKey) as {
       uid: string
     }
