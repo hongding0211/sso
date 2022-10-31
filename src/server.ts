@@ -2,7 +2,7 @@ import * as Koa from 'koa'
 import * as bodyParser from 'koa-bodyparser'
 import logger = require('koa-logger')
 import cors = require('koa-cors')
-import http = require('http')
+// import http = require('http')
 import https = require('https')
 import fs = require('fs')
 import path = require('path')
@@ -36,7 +36,7 @@ app.use(logger())
 
 app.use(router)
 
-http.createServer(app.callback()).listen(3000)
+// app.listen(3000)
 
 const options = {
   key: fs.readFileSync(path.join(__dirname, '../cert/server.key'), 'utf8'),
