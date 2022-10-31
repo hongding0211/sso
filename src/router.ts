@@ -43,7 +43,7 @@ router.post('/api/login', async (ctx) => {
     const userKey = `${email}${phone}`
     if (requestCnt.has(userKey)) {
       requestCnt.set(userKey, requestCnt.get(userKey) + 1)
-      if (requestCnt.get(userKey) > 3) {
+      if (requestCnt.get(userKey) > 10) {
         res.throw('Too much requests')
         setTimeout(() => {
           requestCnt.delete(userKey)
@@ -54,16 +54,14 @@ router.post('/api/login', async (ctx) => {
       requestCnt.set(userKey, 0)
     }
     const db = new DataBase()
-    const user = await db.find(COLLECTION_NAME, {
-      $and: [
-        {
-          $or: [{ email }, { phone }],
-        },
-        {
-          password,
-        },
-      ],
-    })
+    const user =
+      phone !== undefined
+        ? await db.find(COLLECTION_NAME, {
+            $and: [{ phone }, { password }],
+          })
+        : await db.find(COLLECTION_NAME, {
+            $and: [{ email }, { password }],
+          })
     if (user.length < 1) {
       res.throw('Wrong user name or password')
       return
@@ -75,6 +73,7 @@ router.post('/api/login', async (ctx) => {
       `${ticket}`,
       `${Math.floor(Date.now() / 60000)}${SIGNATURE_SECRET}`
     )
+    requestCnt.delete(userKey)
     tickets.set(ticket, {
       uid: user[0].uid,
       sig,
