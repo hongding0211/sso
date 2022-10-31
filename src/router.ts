@@ -137,7 +137,7 @@ router.post('/api/register', async (ctx) => {
 router.post('/api/validate', async (ctx) => {
   const res = new Response<IPostApiValidate>()
   try {
-    ctx.cookies.set('x-auth-tken', null)
+    ctx.cookies.set('x-auth-token', null)
     const { ticket, maxAge } = <IPostApiValidate['IReq']>ctx.request.body
     const user = tickets.get(ticket)
     if (user === undefined) {
@@ -163,7 +163,12 @@ router.post('/api/validate', async (ctx) => {
           algorithm: 'RS256',
         }
       )
-      ctx.cookies.set('x-auth-token', authToken)
+      ctx.cookies.set('x-auth-token', authToken, {
+        sameSite: 'none',
+        secure: true,
+        overwrite: true,
+        maxAge: 30 * 60 * 60 * 1000,
+      })
       tickets.delete(ticket)
     } else {
       res.throw('Invalid ticket')
