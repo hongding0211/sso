@@ -9,6 +9,7 @@ const app = new Koa()
 app.use(
   cors({
     credentials: true,
+    maxAge: 60 * 60 * 1000,
   })
 )
 
