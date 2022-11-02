@@ -30,7 +30,8 @@ const tickets = new Map<
   string,
   {
     uid: string
-    sig: string
+    ticket: string
+    signedTicket: string
   }
 >()
 
@@ -43,7 +44,7 @@ router.post('/api/login', async (ctx) => {
     const userKey = `${email}${phone}`
     if (requestCnt.has(userKey)) {
       requestCnt.set(userKey, requestCnt.get(userKey) + 1)
-      if (requestCnt.get(userKey) > 3) {
+      if (requestCnt.get(userKey) > 10) {
         res.throw('Too much requests')
         setTimeout(() => {
           requestCnt.delete(userKey)
@@ -54,16 +55,14 @@ router.post('/api/login', async (ctx) => {
       requestCnt.set(userKey, 0)
     }
     const db = new DataBase()
-    const user = await db.find(COLLECTION_NAME, {
-      $and: [
-        {
-          $or: [{ email }, { phone }],
-        },
-        {
-          password,
-        },
-      ],
-    })
+    const user =
+      phone !== undefined
+        ? await db.find(COLLECTION_NAME, {
+            $and: [{ phone }, { password }],
+          })
+        : await db.find(COLLECTION_NAME, {
+            $and: [{ email }, { password }],
+          })
     if (user.length < 1) {
       res.throw('Wrong user name or password')
       return
@@ -71,19 +70,21 @@ router.post('/api/login', async (ctx) => {
     const ticket = shajs('sha256')
       .update(`${Date.now()}${user[0].uid}`)
       .digest('hex')
-    const sig = hmac.sign(
+    const signedTicket = hmac.sign(
       `${ticket}`,
       `${Math.floor(Date.now() / 60000)}${SIGNATURE_SECRET}`
     )
-    tickets.set(ticket, {
+    requestCnt.delete(userKey)
+    tickets.set(signedTicket, {
       uid: user[0].uid,
-      sig,
+      ticket,
+      signedTicket,
     })
     setTimeout(() => {
-      tickets.delete(ticket)
+      tickets.delete(signedTicket)
     }, 60000)
     res.set({
-      ticket,
+      ticket: signedTicket,
     })
   } catch (e) {
     res.throw(e.message)
@@ -100,11 +101,8 @@ router.post('/api/register', async (ctx) => {
     )
     const db = new DataBase()
     if (
-      (
-        await db.find(COLLECTION_NAME, {
-          $or: [{ email }, { phone }],
-        })
-      ).length > 0
+      (email && (await db.find(COLLECTION_NAME, { email })).length > 0) ||
+      (phone && (await db.find(COLLECTION_NAME, { phone })).length > 0)
     ) {
       res.throw('User exists')
       return
@@ -137,7 +135,12 @@ router.post('/api/register', async (ctx) => {
 router.post('/api/validate', async (ctx) => {
   const res = new Response<IPostApiValidate>()
   try {
-    ctx.cookies.set('auth-token', null)
+    ctx.cookies.set('auth-token', null, {
+      overwrite: true,
+      maxAge: 30 * 60 * 60 * 1000,
+      sameSite: 'none',
+      secure: true,
+    })
     const { ticket, maxAge } = <IPostApiValidate['IReq']>ctx.request.body
     const user = tickets.get(ticket)
     if (user === undefined) {
@@ -148,8 +151,8 @@ router.post('/api/validate', async (ctx) => {
     const s1 = `${Math.floor(Date.now() / 60000)}${SIGNATURE_SECRET}`
     const s2 = `${Math.floor(Date.now() / 60000) - 1}${SIGNATURE_SECRET}`
     if (
-      hmac.verify(ticket, user.sig, s1) ||
-      hmac.verify(ticket, user.sig, s2)
+      hmac.verify(user.ticket, user.signedTicket, s1) ||
+      hmac.verify(user.ticket, user.signedTicket, s2)
     ) {
       res.set({})
       const authToken = jwt.sign(
@@ -166,6 +169,8 @@ router.post('/api/validate', async (ctx) => {
       ctx.cookies.set('auth-token', authToken, {
         overwrite: true,
         maxAge: 30 * 60 * 60 * 1000,
+        sameSite: 'none',
+        secure: true,
       })
       tickets.delete(ticket)
     } else {

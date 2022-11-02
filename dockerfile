@@ -2,7 +2,7 @@ FROM node:16
 
 MAINTAINER keith.dh@hotmail.com
 
-EXPOSE 3000
+EXPOSE 3001
 
 WORKDIR /home/node/app
 
