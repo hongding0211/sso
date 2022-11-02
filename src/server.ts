@@ -10,7 +10,7 @@ import router from './router'
 
 const app = new Koa()
 
-app.use(sslify())
+// app.use(sslify())
 
 app.use(
   cors({
@@ -35,11 +35,11 @@ app.use(logger())
 
 app.use(router)
 
-// app.listen(3000)
+app.listen(3000)
 
-const options = {
-  key: fs.readFileSync(path.join(__dirname, '../cert/server.key'), 'utf8'),
-  cert: fs.readFileSync(path.join(__dirname, '../cert/server.pem'), 'utf8'),
-}
-
-https.createServer(options, app.callback()).listen(3001)
+// const options = {
+//   key: fs.readFileSync(path.join(__dirname, '../cert/server.key'), 'utf8'),
+//   cert: fs.readFileSync(path.join(__dirname, '../cert/server.pem'), 'utf8'),
+// }
+//
+// https.createServer(options, app.callback()).listen(3001)
