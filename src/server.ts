@@ -2,7 +2,6 @@ import * as Koa from 'koa'
 import * as bodyParser from 'koa-bodyparser'
 import logger = require('koa-logger')
 import cors = require('koa-cors')
-// import http = require('http')
 import https = require('https')
 import fs = require('fs')
 import path = require('path')

@@ -30,7 +30,8 @@ const tickets = new Map<
   string,
   {
     uid: string
-    sig: string
+    ticket: string
+    signedTicket: string
   }
 >()
 
@@ -69,20 +70,21 @@ router.post('/api/login', async (ctx) => {
     const ticket = shajs('sha256')
       .update(`${Date.now()}${user[0].uid}`)
       .digest('hex')
-    const sig = hmac.sign(
+    const signedTicket = hmac.sign(
       `${ticket}`,
       `${Math.floor(Date.now() / 60000)}${SIGNATURE_SECRET}`
     )
     requestCnt.delete(userKey)
-    tickets.set(ticket, {
+    tickets.set(signedTicket, {
       uid: user[0].uid,
-      sig,
+      ticket,
+      signedTicket,
     })
     setTimeout(() => {
-      tickets.delete(ticket)
+      tickets.delete(signedTicket)
     }, 60000)
     res.set({
-      ticket,
+      ticket: signedTicket,
     })
   } catch (e) {
     res.throw(e.message)
@@ -138,7 +140,6 @@ router.post('/api/validate', async (ctx) => {
       maxAge: 30 * 60 * 60 * 1000,
       sameSite: 'none',
       secure: true,
-      httpOnly: false,
     })
     const { ticket, maxAge } = <IPostApiValidate['IReq']>ctx.request.body
     const user = tickets.get(ticket)
@@ -150,8 +151,8 @@ router.post('/api/validate', async (ctx) => {
     const s1 = `${Math.floor(Date.now() / 60000)}${SIGNATURE_SECRET}`
     const s2 = `${Math.floor(Date.now() / 60000) - 1}${SIGNATURE_SECRET}`
     if (
-      hmac.verify(ticket, user.sig, s1) ||
-      hmac.verify(ticket, user.sig, s2)
+      hmac.verify(user.ticket, user.signedTicket, s1) ||
+      hmac.verify(user.ticket, user.signedTicket, s2)
     ) {
       res.set({})
       const authToken = jwt.sign(
