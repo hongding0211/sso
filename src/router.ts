@@ -57,14 +57,22 @@ router.post('/api/login', async (ctx) => {
     const db = new DataBase()
     const user =
       phone !== undefined
-        ? await db.find(COLLECTION_NAME, {
-            $and: [{ phone }, { password }],
-          })
-        : await db.find(COLLECTION_NAME, {
-            $and: [{ email }, { password }],
-          })
+        ? await db.find(COLLECTION_NAME, { phone })
+        : await db.find(COLLECTION_NAME, { email })
     if (user.length < 1) {
-      res.throw('Wrong user name or password')
+      res.throw('邮箱 / 电话错误')
+      return
+    }
+    // check password
+    const originPassword = user[0].password
+    const p1 = shajs('sha256')
+      .update(`${Math.floor(Date.now() / 60000)}${originPassword}`)
+      .digest('hex')
+    const p2 = shajs('sha256')
+      .update(`${Math.floor(Date.now() / 60000) - 1}${originPassword}`)
+      .digest('hex')
+    if (password !== p1 && password !== p2) {
+      res.throw('密码错误')
       return
     }
     const ticket = shajs('sha256')
@@ -135,12 +143,6 @@ router.post('/api/register', async (ctx) => {
 router.post('/api/validate', async (ctx) => {
   const res = new Response<IPostApiValidate>()
   try {
-    ctx.cookies.set('auth-token', null, {
-      overwrite: true,
-      maxAge: 30 * 60 * 60 * 1000,
-      sameSite: 'none',
-      secure: true,
-    })
     const { ticket, maxAge } = <IPostApiValidate['IReq']>ctx.request.body
     const user = tickets.get(ticket)
     if (user === undefined) {
@@ -154,7 +156,6 @@ router.post('/api/validate', async (ctx) => {
       hmac.verify(user.ticket, user.signedTicket, s1) ||
       hmac.verify(user.ticket, user.signedTicket, s2)
     ) {
-      res.set({})
       const authToken = jwt.sign(
         {
           uid: user.uid,
@@ -166,11 +167,8 @@ router.post('/api/validate', async (ctx) => {
           algorithm: 'RS256',
         }
       )
-      ctx.cookies.set('auth-token', authToken, {
-        overwrite: true,
-        maxAge: 30 * 60 * 60 * 1000,
-        sameSite: 'none',
-        secure: true,
+      res.set({
+        authToken,
       })
       tickets.delete(ticket)
     } else {
@@ -186,7 +184,13 @@ router.post('/api/validate', async (ctx) => {
 router.get('/api/userInfo', async (ctx) => {
   const res = new Response<IGetApiUserInfo>()
   try {
-    const authToken = ctx.cookies.get('auth-token')
+    const { authToken } = ctx.query as {
+      authToken?: string
+    }
+    if (authToken === undefined) {
+      res.throw('no auth-token')
+      return
+    }
     const { uid } = jwt.verify(authToken, publicKey) as {
       uid: string
     }
