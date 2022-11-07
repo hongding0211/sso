@@ -1,10 +1,10 @@
-import { IApi, IResponse } from './types'
+import { IApi, IResponseBody } from './types'
 
-interface IRequests {
-  response: IResponse<Record<string, any> | Record<string, any>[]>
+interface IResponse {
+  response: IResponseBody<Record<string, any> | Record<string, any>[]>
 }
 
-export default class Response<T extends IApi> implements IRequests {
+export default class Response<T extends IApi> implements IResponse {
   response: T['IRes'] = {
     success: false,
     msg: '',
