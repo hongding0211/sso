@@ -1,4 +1,6 @@
-export type IResponse<T extends Record<string, any> | Record<string, any>[]> = {
+export type IResponseBody<
+  T extends Record<string, any> | Record<string, any>[]
+> = {
   success: boolean
   msg?: string
   data?: T
@@ -6,7 +8,7 @@ export type IResponse<T extends Record<string, any> | Record<string, any>[]> = {
 
 export interface IApi {
   IReq: Record<string, any>
-  IRes: IResponse<Record<string, any> | Record<string, any>[]>
+  IRes: IResponseBody<Record<string, any> | Record<string, any>[]>
 }
 
 export interface IPostApiLogin extends IApi {
@@ -15,7 +17,7 @@ export interface IPostApiLogin extends IApi {
     phone?: string
     password: string
   }
-  IRes: IResponse<{
+  IRes: IResponseBody<{
     ticket: string
   }>
 }
@@ -28,7 +30,7 @@ export interface IPostApiRegister extends IApi {
     password: string
     avatar: string
   }
-  IRes: IResponse<{
+  IRes: IResponseBody<{
     email?: string
     phone?: string
     name: string
@@ -41,12 +43,16 @@ export interface IPostApiValidate extends IApi {
     ticket: string
     maxAge?: string | number
   }
-  IRes: IResponse<{}>
+  IRes: IResponseBody<{
+    authToken: string
+  }>
 }
 
 export interface IGetApiUserInfo extends IApi {
-  IReq: {}
-  IRes: IResponse<{
+  IReq: {
+    authToken: string
+  }
+  IRes: IResponseBody<{
     email?: string
     phone?: string
     name: string
