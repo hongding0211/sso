@@ -1,4 +1,4 @@
-import { IApi, IResponseBody } from './types'
+import { IApi, IResponseBody } from '../services/types'
 
 interface IResponse {
   response: IResponseBody<Record<string, any> | Record<string, any>[]>

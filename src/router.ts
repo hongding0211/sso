@@ -4,16 +4,20 @@ import jwa = require('jwa')
 import jwt = require('jsonwebtoken')
 import * as fs from 'fs'
 import * as path from 'path'
-import Response from './requests/response'
+import Response from './utlis/response'
 import {
   IGetApiUserInfo,
   IPostApiValidate,
   IPostApiLogin,
   IPostApiRegister,
-} from './requests/types'
+  IPatchApiUserInfo,
+  IPostApiModifyPassword,
+  IPostApiSendCode,
+} from './services/types'
 import { SIGNATURE_SECRET, COLLECTION_NAME } from './config'
-import DataBase from './database'
+import DataBase from './services/database'
 import User from './services/user'
+import barkSend from './services/bark'
 
 const privateKey = fs.readFileSync(
   path.join(__dirname, '../public/rsa_private_key.pem')
@@ -35,12 +39,22 @@ const tickets = new Map<
   }
 >()
 
+const codes = new Map<
+  string,
+  {
+    code: string
+    time: number
+  }[]
+>()
+
 const requestCnt = new Map<string, number>()
 
 router.post('/api/login', async (ctx) => {
   const res = new Response<IPostApiLogin>()
   try {
-    const { email, phone, password } = <IPostApiLogin['IReq']>ctx.request.body
+    const { email, phone, password } = <IPostApiLogin['IReq']['body']>(
+      ctx.request.body
+    )
     const userKey = `${email}${phone}`
     if (requestCnt.has(userKey)) {
       requestCnt.set(userKey, requestCnt.get(userKey) + 1)
@@ -104,9 +118,9 @@ router.post('/api/login', async (ctx) => {
 router.post('/api/register', async (ctx) => {
   const res = new Response<IPostApiRegister>()
   try {
-    const { email, phone, password, name, avatar } = <IPostApiRegister['IReq']>(
-      ctx.request.body
-    )
+    const { email, phone, password, name, avatar } = <
+      IPostApiRegister['IReq']['body']
+    >ctx.request.body
     const db = new DataBase()
     if (
       (email && (await db.find(COLLECTION_NAME, { email })).length > 0) ||
@@ -143,7 +157,9 @@ router.post('/api/register', async (ctx) => {
 router.post('/api/validate', async (ctx) => {
   const res = new Response<IPostApiValidate>()
   try {
-    const { ticket, maxAge } = <IPostApiValidate['IReq']>ctx.request.body
+    const { ticket, maxAge } = <IPostApiValidate['IReq']['body']>(
+      ctx.request.body
+    )
     const user = tickets.get(ticket)
     if (user === undefined) {
       res.throw('Invalid ticket')
@@ -184,9 +200,7 @@ router.post('/api/validate', async (ctx) => {
 router.get('/api/userInfo', async (ctx) => {
   const res = new Response<IGetApiUserInfo>()
   try {
-    const { authToken } = ctx.query as {
-      authToken?: string
-    }
+    const { authToken } = ctx.query as IGetApiUserInfo['IReq']['params']
     if (authToken === undefined) {
       res.throw('no auth-token')
       return
@@ -212,6 +226,153 @@ router.get('/api/userInfo', async (ctx) => {
   } catch (e) {
     res.throw(e.message)
     ctx.status = 403
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.patch('/api/userInfo', async (ctx) => {
+  const res = new Response<IPatchApiUserInfo>()
+  try {
+    const { authToken } = ctx.query as IPatchApiUserInfo['IReq']['params']
+    if (authToken === undefined) {
+      res.throw('no auth-token')
+      ctx.status = 401
+    }
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
+    }
+    const db = new DataBase()
+    const user = await db.find(COLLECTION_NAME, {
+      uid,
+    })
+    if (user.length < 1) {
+      res.throw('User not exists')
+      return
+    }
+    const modifyResult = await db.updateOne(
+      COLLECTION_NAME,
+      {
+        uid,
+      },
+      {
+        $set: {
+          ...ctx.body,
+        },
+      }
+    )
+    if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
+      res.set({
+        ...user[0],
+        ...ctx.body,
+      })
+    } else {
+      res.throw('Update failed')
+    }
+  } catch (e) {
+    res.throw(e.message)
+    ctx.status = 500
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.post('/api/sendCode', async (ctx) => {
+  const res = new Response<IPostApiSendCode>()
+  try {
+    const { authToken } = ctx.query as IPostApiSendCode['IReq']['params']
+    if (authToken === undefined) {
+      res.throw('no auth-token')
+      ctx.status = 401
+    }
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
+    }
+    const code = `${Math.floor(Math.random() * 10000)}`
+    const node = {
+      code,
+      time: Date.now(),
+    }
+    if (!codes.has(uid) || codes.get(uid).length < 1) {
+      codes.set(uid, [node])
+      res.set({})
+      await barkSend(`Uid: ${uid}, Code: ${node.code}`)
+    } else if (
+      codes.get(uid).length > 10 ||
+      Date.now() - codes.get(uid)[codes.get(uid).length - 1].time < 1000
+    ) {
+      res.throw('Too much requests, try later.')
+      return
+    } else {
+      codes.get(uid).push(node)
+      res.set({})
+      await barkSend(`Uid: ${uid}, Code: ${node.code}`)
+    }
+    setTimeout(() => {
+      codes.set(
+        uid,
+        codes.get(uid).filter((c) => c.code !== code)
+      )
+    }, 3 * 60 * 1000)
+  } catch (e) {
+    res.throw(e.message)
+    ctx.status = 500
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.post('/api/modifyPassword', async (ctx) => {
+  const res = new Response<IPostApiModifyPassword>()
+  try {
+    const { authToken } = ctx.query as IPostApiModifyPassword['IReq']['params']
+    const { code, newPassword } = <IPostApiModifyPassword['IReq']['body']>(
+      ctx.request.body
+    )
+    if (authToken === undefined) {
+      res.throw('no auth-token')
+      ctx.status = 401
+    }
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
+    }
+    if (!codes.get(uid) || !codes.get(uid).find((e) => e.code === code)) {
+      res.throw('Wrong digital code')
+      return
+    }
+    codes.set(
+      uid,
+      codes.get(uid).filter((c) => c.code !== code)
+    )
+    const db = new DataBase()
+    const user = await db.find(COLLECTION_NAME, {
+      uid,
+    })
+    if (user.length < 1) {
+      res.throw('User not exist')
+      return
+    }
+    const modifyResult = await db.updateOne(
+      COLLECTION_NAME,
+      {
+        uid,
+      },
+      {
+        $set: {
+          password: newPassword,
+        },
+      }
+    )
+    if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
+      res.set({
+        ...user[0],
+      })
+    } else {
+      res.throw('Modify failed')
+    }
+  } catch (e) {
+    res.throw(e.message)
+    ctx.status = 500
   } finally {
     ctx.body = res.get()
   }

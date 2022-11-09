@@ -7,7 +7,7 @@ import {
   WithId,
 } from 'mongodb'
 
-import { databaseConfig } from './config'
+import { databaseConfig } from '../config'
 
 export default class DataBase {
   static connectionStr = databaseConfig.connectionStr
