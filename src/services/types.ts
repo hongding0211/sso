@@ -10,8 +10,8 @@ export type IRequest<
   P extends Record<string, any> | undefined,
   T extends Record<string, any> | undefined
 > = {
-  params: P
-  body: T
+  params?: P
+  body?: T
 }
 
 export interface IApi {
@@ -83,6 +83,16 @@ export interface IGetApiUserInfo extends IApi {
   }>
 }
 
+export interface IPostApiSendCode extends IApi {
+  IReq: IRequest<
+    {
+      authToken: string
+    },
+    undefined
+  >
+  IRes: IResponseBody<{}>
+}
+
 export interface IPatchApiUserInfo extends IApi {
   IReq: IRequest<
     {
@@ -105,7 +115,9 @@ export interface IPatchApiUserInfo extends IApi {
 
 export interface IPostApiModifyPassword extends IApi {
   IReq: IRequest<
-    undefined,
+    {
+      authToken: string
+    },
     {
       code: string
       newPassword: string

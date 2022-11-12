@@ -12,6 +12,7 @@ import {
   IPostApiRegister,
   IPatchApiUserInfo,
   IPostApiModifyPassword,
+  IPostApiSendCode,
 } from './services/types'
 import { SIGNATURE_SECRET, COLLECTION_NAME } from './config'
 import DataBase from './services/database'
@@ -35,6 +36,14 @@ const tickets = new Map<
     ticket: string
     signedTicket: string
   }
+>()
+
+const codes = new Map<
+  string,
+  {
+    code: string
+    time: number
+  }[]
 >()
 
 const requestCnt = new Map<string, number>()
@@ -221,7 +230,7 @@ router.get('/api/userInfo', async (ctx) => {
   }
 })
 
-router.patch('api/userInfo', async (ctx) => {
+router.patch('/api/userInfo', async (ctx) => {
   const res = new Response<IPatchApiUserInfo>()
   try {
     const { authToken } = ctx.query as IPatchApiUserInfo['IReq']['params']
@@ -240,7 +249,25 @@ router.patch('api/userInfo', async (ctx) => {
       res.throw('User not exists')
       return
     }
-    // TODO update db
+    const modifyResult = await db.updateOne(
+      COLLECTION_NAME,
+      {
+        uid,
+      },
+      {
+        $set: {
+          ...ctx.body,
+        },
+      }
+    )
+    if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
+      res.set({
+        ...user[0],
+        ...ctx.body,
+      })
+    } else {
+      res.throw('Update failed')
+    }
   } catch (e) {
     res.throw(e.message)
     ctx.status = 500
@@ -249,13 +276,96 @@ router.patch('api/userInfo', async (ctx) => {
   }
 })
 
-router.post('api/modifyPassword', async (ctx) => {
-  const res = new Response<IPatchApiUserInfo>()
+router.post('/api/sendCode', async (ctx) => {
+  const res = new Response<IPostApiSendCode>()
   try {
+    const { authToken } = ctx.query as IPostApiSendCode['IReq']['params']
+    if (authToken === undefined) {
+      res.throw('no auth-token')
+      ctx.status = 401
+    }
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
+    }
+    const code = `${Math.floor(Math.random() * 10000)}`
+    const node = {
+      code,
+      time: Date.now(),
+    }
+    if (!codes.has(uid)) {
+      codes.set(uid, [node])
+      res.set({})
+      // TODO 验证码发送出去
+    } else if (
+      codes.get(uid).length > 10 ||
+      Date.now() - codes.get(uid)[codes.get(uid).length - 1].time < 1000
+    ) {
+      res.throw('Too much requests, try later.')
+      return
+    } else {
+      codes.get(uid).push(node)
+      res.set({})
+      // TODO 验证码发送出去
+      console.log(node)
+    }
+    setTimeout(() => {
+      codes.set(
+        uid,
+        codes.get(uid).filter((c) => c.code !== code)
+      )
+    }, 3 * 60 * 1000)
+  } catch (e) {
+    res.throw(e.message)
+    ctx.status = 500
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.post('/api/modifyPassword', async (ctx) => {
+  const res = new Response<IPostApiModifyPassword>()
+  try {
+    const { authToken } = ctx.query as IPostApiSendCode['IReq']['params']
     const { code, newPassword } = <IPostApiModifyPassword['IReq']['body']>(
       ctx.body
     )
-    // TODO
+    if (authToken === undefined) {
+      res.throw('no auth-token')
+      ctx.status = 401
+    }
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
+    }
+    if (!codes.get(uid) || !codes.get(uid).find((e) => e.code === code)) {
+      res.throw('Wrong digital code')
+      return
+    }
+    const db = new DataBase()
+    const user = await db.find(COLLECTION_NAME, {
+      uid,
+    })
+    if (user.length < 1) {
+      res.throw('User not exist')
+      return
+    }
+    const modifyResult = await db.updateOne(
+      COLLECTION_NAME,
+      {
+        uid,
+      },
+      {
+        $set: {
+          password: newPassword,
+        },
+      }
+    )
+    if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
+      res.set({
+        ...user[0],
+      })
+    } else {
+      res.throw('Modify failed')
+    }
   } catch (e) {
     res.throw(e.message)
     ctx.status = 500
