@@ -17,6 +17,7 @@ import {
 import { SIGNATURE_SECRET, COLLECTION_NAME } from './config'
 import DataBase from './services/database'
 import User from './services/user'
+import barkSend from './services/bark'
 
 const privateKey = fs.readFileSync(
   path.join(__dirname, '../public/rsa_private_key.pem')
@@ -292,10 +293,10 @@ router.post('/api/sendCode', async (ctx) => {
       code,
       time: Date.now(),
     }
-    if (!codes.has(uid)) {
+    if (!codes.has(uid) || codes.get(uid).length < 1) {
       codes.set(uid, [node])
       res.set({})
-      // TODO 验证码发送出去
+      await barkSend(`Uid: ${uid}, Code: ${node.code}`)
     } else if (
       codes.get(uid).length > 10 ||
       Date.now() - codes.get(uid)[codes.get(uid).length - 1].time < 1000
@@ -305,8 +306,7 @@ router.post('/api/sendCode', async (ctx) => {
     } else {
       codes.get(uid).push(node)
       res.set({})
-      // TODO 验证码发送出去
-      console.log(node)
+      await barkSend(`Uid: ${uid}, Code: ${node.code}`)
     }
     setTimeout(() => {
       codes.set(
@@ -325,9 +325,9 @@ router.post('/api/sendCode', async (ctx) => {
 router.post('/api/modifyPassword', async (ctx) => {
   const res = new Response<IPostApiModifyPassword>()
   try {
-    const { authToken } = ctx.query as IPostApiSendCode['IReq']['params']
+    const { authToken } = ctx.query as IPostApiModifyPassword['IReq']['params']
     const { code, newPassword } = <IPostApiModifyPassword['IReq']['body']>(
-      ctx.body
+      ctx.request.body
     )
     if (authToken === undefined) {
       res.throw('no auth-token')
@@ -340,6 +340,10 @@ router.post('/api/modifyPassword', async (ctx) => {
       res.throw('Wrong digital code')
       return
     }
+    codes.set(
+      uid,
+      codes.get(uid).filter((c) => c.code !== code)
+    )
     const db = new DataBase()
     const user = await db.find(COLLECTION_NAME, {
       uid,
