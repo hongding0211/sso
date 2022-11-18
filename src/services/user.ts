@@ -34,7 +34,7 @@ export default class User {
       phone: this.phone,
       password: this.password,
       uid: this.uid,
-      nane: this.name,
+      name: this.name,
       avatar: this.avatar,
     }
   }
