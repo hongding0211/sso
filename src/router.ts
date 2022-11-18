@@ -13,6 +13,8 @@ import {
   IPatchApiUserInfo,
   IPostApiModifyPassword,
   IPostApiSendCode,
+  IPostApiForgetPassword,
+  IPostApiResetPassword,
 } from './services/types'
 import { SIGNATURE_SECRET, COLLECTION_NAME } from './config'
 import DataBase from './services/database'
@@ -288,7 +290,7 @@ router.post('/api/sendCode', async (ctx) => {
     const { uid } = jwt.verify(authToken, publicKey) as {
       uid: string
     }
-    const code = `${Math.floor(Math.random() * 10000)}`
+    const code = `000${Math.floor(Math.random() * 10000)}`.slice(-4)
     const node = {
       code,
       time: Date.now(),
@@ -364,9 +366,111 @@ router.post('/api/modifyPassword', async (ctx) => {
       }
     )
     if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
-      res.set({
-        ...user[0],
-      })
+      res.set({})
+    } else {
+      res.throw('Modify failed')
+    }
+  } catch (e) {
+    res.throw(e.message)
+    ctx.status = 500
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.post('/api/forgetPassword', async (ctx) => {
+  const res = new Response<IPostApiForgetPassword>()
+  try {
+    const { email, phone } = <IPostApiForgetPassword['IReq']['body']>(
+      ctx.request.body
+    )
+    const db = new DataBase()
+    const user = email
+      ? await db.find(COLLECTION_NAME, { email })
+      : await db.find(COLLECTION_NAME, { phone })
+    if (user.length < 1) {
+      res.throw('User not exists')
+      return
+    }
+    const { uid } = user[0]
+    const code = `000${Math.floor(Math.random() * 10000)}`.slice(-4)
+    const node = {
+      code,
+      time: Date.now(),
+    }
+    if (!codes.has(uid) || codes.get(uid).length < 1) {
+      codes.set(uid, [node])
+      res.set({})
+      await barkSend(
+        `${phone ? `Phone: ${phone}` : `Email: ${email}`}, Uid: ${uid}, Code: ${
+          node.code
+        }`
+      )
+    } else if (
+      codes.get(uid).length > 10 ||
+      Date.now() - codes.get(uid)[codes.get(uid).length - 1].time < 1000
+    ) {
+      res.throw('Too much requests, try later.')
+      return
+    } else {
+      codes.get(uid).push(node)
+      res.set({})
+      await barkSend(
+        `${phone ? `Phone: ${phone}` : `Email: ${email}`}, Uid: ${uid}, Code: ${
+          node.code
+        }`
+      )
+    }
+    setTimeout(() => {
+      codes.set(
+        uid,
+        codes.get(uid).filter((c) => c.code !== code)
+      )
+    }, 3 * 60 * 1000)
+  } catch (e) {
+    res.throw(e.message)
+    ctx.status = 500
+  } finally {
+    ctx.body = res.get()
+  }
+})
+
+router.post('/api/resetPassword', async (ctx) => {
+  const res = new Response<IPostApiResetPassword>()
+  try {
+    const { code, newPassword, email, phone } = <
+      IPostApiResetPassword['IReq']['body']
+    >ctx.request.body
+    const db = new DataBase()
+    const user = email
+      ? await db.find(COLLECTION_NAME, { email })
+      : await db.find(COLLECTION_NAME, { phone })
+    if (user.length < 1) {
+      res.throw('User not exists')
+      return
+    }
+    const { uid } = user[0]
+    if (!codes.get(uid) || !codes.get(uid).find((e) => e.code === code)) {
+      res.throw('Wrong digital code')
+      return
+    }
+    codes.set(
+      uid,
+      codes.get(uid).filter((c) => c.code !== code)
+    )
+    const modifyResult = await db.updateOne(
+      COLLECTION_NAME,
+      {
+        uid,
+      },
+      {
+        $set: {
+          password: newPassword,
+        },
+      }
+    )
+    if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
+      res.set({})
     } else {
       res.throw('Modify failed')
     }
