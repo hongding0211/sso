@@ -342,6 +342,10 @@ router.post('/api/modifyPassword', async (ctx) => {
       res.throw('Wrong digital code')
       return
     }
+    codes.set(
+      uid,
+      codes.get(uid).filter((c) => c.code !== code)
+    )
     const db = new DataBase()
     const user = await db.find(COLLECTION_NAME, {
       uid,
@@ -361,7 +365,7 @@ router.post('/api/modifyPassword', async (ctx) => {
         },
       }
     )
-    if (modifyResult.acknowledged) {
+    if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
       res.set({})
     } else {
       res.throw('Modify failed')
@@ -450,6 +454,10 @@ router.post('/api/resetPassword', async (ctx) => {
       res.throw('Wrong digital code')
       return
     }
+    codes.set(
+      uid,
+      codes.get(uid).filter((c) => c.code !== code)
+    )
     const modifyResult = await db.updateOne(
       COLLECTION_NAME,
       {
@@ -461,7 +469,7 @@ router.post('/api/resetPassword', async (ctx) => {
         },
       }
     )
-    if (modifyResult.acknowledged) {
+    if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
       res.set({})
     } else {
       res.throw('Modify failed')
