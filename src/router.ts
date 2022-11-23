@@ -475,7 +475,7 @@ router.post('/api/resetPassword', async (ctx) => {
 })
 
 router.head('/api/checkAuthToken', async (ctx) => {
-  const { authToken } = ctx.query
+  const { authToken } = ctx.query as { authToken?: string }
   try {
     if (!authToken) {
       ctx.status = 401
