@@ -474,4 +474,27 @@ router.post('/api/resetPassword', async (ctx) => {
   }
 })
 
+router.head('/api/checkAuthToken', async (ctx) => {
+  const { authToken } = ctx.query as { authToken?: string }
+  try {
+    if (!authToken) {
+      ctx.status = 401
+    }
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
+    }
+    const db = new DataBase()
+    const user = await db.find(COLLECTION_NAME, {
+      uid,
+    })
+    if (user.length < 1) {
+      ctx.status = 403
+      return
+    }
+    ctx.status = 200
+  } catch (e) {
+    ctx.status = 500
+  }
+})
+
 export default router.routes()

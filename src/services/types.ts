@@ -149,3 +149,13 @@ export interface IPostApiResetPassword extends IApi {
   >
   IRes: IResponseBody<{}>
 }
+
+export interface IHeadApiCheckAuthToken extends IApi {
+  IReq: IRequest<
+    {
+      authToken?: string
+    },
+    undefined
+  >
+  IRes: IResponseBody<{}>
+}

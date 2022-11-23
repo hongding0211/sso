@@ -21,30 +21,32 @@ app.use(async (ctx, next) => {
   ctx.set('x-time-cost', `${Date.now() - startTime}`)
 
   // TODO 待整理
-  const token = shajs('sha256')
-    .update(`${Math.floor(Date.now() / 600000)}${SIGNATURE_SECRET}`)
-    .digest('hex')
-  await fetch(`https://hong97.ltd/log/api/log?token=${token}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      system: 'sso',
-      content: {
-        url: ctx.url,
-        request: {
-          header: ctx.request.header,
-          params: ctx.query,
-          body: ctx.request.body,
-        },
-        response: {
-          header: ctx.response.header,
-          body: ctx.response.body,
-        },
+  if (ctx.method !== 'HEAD') {
+    const token = shajs('sha256')
+      .update(`${Math.floor(Date.now() / 600000)}${SIGNATURE_SECRET}`)
+      .digest('hex')
+    await fetch(`https://hong97.ltd/log/api/log?token=${token}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    }),
-  })
+      body: JSON.stringify({
+        system: 'sso',
+        content: {
+          url: ctx.url,
+          request: {
+            header: ctx.request.header,
+            params: ctx.query,
+            body: ctx.request.body,
+          },
+          response: {
+            header: ctx.response.header,
+            body: ctx.response.body,
+          },
+        },
+      }),
+    })
+  }
 })
 
 app.use(bodyParser())
