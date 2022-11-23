@@ -474,7 +474,7 @@ router.post('/api/resetPassword', async (ctx) => {
   }
 })
 
-router.head('/api/resetCheckAuthToken', async (ctx) => {
+router.head('/api/checkAuthToken', async (ctx) => {
   const { authToken } = ctx.query
   try {
     if (!authToken) {
