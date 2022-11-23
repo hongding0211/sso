@@ -32,6 +32,7 @@ app.use(async (ctx, next) => {
     body: JSON.stringify({
       system: 'sso',
       content: {
+        url: ctx.url,
         request: {
           header: ctx.request.header,
           params: ctx.query,
