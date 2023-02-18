@@ -2,7 +2,6 @@ import * as Router from 'koa-router'
 import shajs = require('sha.js')
 import jwa = require('jwa')
 import jwt = require('jsonwebtoken')
-import CryptoJS = require('crypto-js')
 import * as fs from 'fs'
 import * as path from 'path'
 import Response from './utlis/response'
@@ -32,8 +31,6 @@ const publicKey = fs.readFileSync(
 const router = new Router()
 
 const hmac = jwa('HS256')
-
-const { AES, enc } = CryptoJS
 
 const tickets = new Map<
   string,
@@ -177,10 +174,9 @@ router.post('/api/validate', async (ctx) => {
       hmac.verify(user.ticket, user.signedTicket, s1) ||
       hmac.verify(user.ticket, user.signedTicket, s2)
     ) {
-      const encryptedStr = AES.encrypt(user.uid, SIGNATURE_SECRET).toString()
       const authToken = jwt.sign(
         {
-          key: encryptedStr,
+          uid: user.uid,
         },
         privateKey,
         {
@@ -211,10 +207,9 @@ router.get('/api/userInfo', async (ctx) => {
       res.throw('no auth-token')
       return
     }
-    const { key } = jwt.verify(authToken, publicKey) as {
-      key: string
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
     }
-    const uid = AES.decrypt(key, SIGNATURE_SECRET).toString(enc.Utf8)
     const db = new DataBase()
     const user = await db.find(COLLECTION_NAME, {
       uid,
@@ -246,10 +241,9 @@ router.patch('/api/userInfo', async (ctx) => {
       res.throw('no auth-token')
       ctx.status = 401
     }
-    const { key } = jwt.verify(authToken, publicKey) as {
-      key: string
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
     }
-    const uid = AES.decrypt(key, SIGNATURE_SECRET).toString(enc.Utf8)
     const db = new DataBase()
     const user = await db.find(COLLECTION_NAME, {
       uid,
@@ -293,10 +287,9 @@ router.post('/api/sendCode', async (ctx) => {
       res.throw('no auth-token')
       ctx.status = 401
     }
-    const { key } = jwt.verify(authToken, publicKey) as {
-      key: string
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
     }
-    const uid = AES.decrypt(key, SIGNATURE_SECRET).toString(enc.Utf8)
     const code = `000${Math.floor(Math.random() * 10000)}`.slice(-4)
     const node = {
       code,
@@ -342,10 +335,9 @@ router.post('/api/modifyPassword', async (ctx) => {
       res.throw('no auth-token')
       ctx.status = 401
     }
-    const { key } = jwt.verify(authToken, publicKey) as {
-      key: string
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
     }
-    const uid = AES.decrypt(key, SIGNATURE_SECRET).toString(enc.Utf8)
     if (!codes.get(uid) || !codes.get(uid).find((e) => e.code === code)) {
       res.throw('Wrong digital code')
       return
@@ -488,10 +480,9 @@ router.head('/api/checkAuthToken', async (ctx) => {
     if (!authToken) {
       ctx.status = 401
     }
-    const { key } = jwt.verify(authToken, publicKey) as {
-      key: string
+    const { uid } = jwt.verify(authToken, publicKey) as {
+      uid: string
     }
-    const uid = AES.decrypt(key, SIGNATURE_SECRET).toString(enc.Utf8)
     const db = new DataBase()
     const user = await db.find(COLLECTION_NAME, {
       uid,
