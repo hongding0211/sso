@@ -10,7 +10,11 @@ const app = new Koa()
 
 app.use(log())
 
-app.use(cors())
+app.use(
+  cors({
+    methods: '*',
+  })
+)
 
 app.use(gateway())
 

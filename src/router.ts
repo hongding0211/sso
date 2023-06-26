@@ -260,14 +260,14 @@ router.patch('/api/userInfo', async (ctx) => {
       {
         $set: {
           ...user[0],
-          ...ctx.body,
+          ...ctx.request.body,
         },
       }
     )
     if (modifyResult.acknowledged && modifyResult.modifiedCount > 0) {
       res.set({
         ...user[0],
-        ...ctx.body,
+        ...ctx.request.body,
       })
     } else {
       res.throw('Update failed')
