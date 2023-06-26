@@ -259,6 +259,7 @@ router.patch('/api/userInfo', async (ctx) => {
       },
       {
         $set: {
+          ...user[0],
           ...ctx.body,
         },
       }
