@@ -71,7 +71,8 @@ export interface IPostApiValidate extends IApi {
 export interface IGetApiUserInfo extends IApi {
   IReq: IRequest<
     {
-      authToken: string
+      authToken?: string
+      uuid?: string
     },
     undefined
   >

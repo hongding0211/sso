@@ -202,29 +202,47 @@ router.post('/api/validate', async (ctx) => {
 router.get('/api/userInfo', async (ctx) => {
   const res = new Response<IGetApiUserInfo>()
   try {
-    const { authToken } = ctx.query as IGetApiUserInfo['IReq']['params']
-    if (authToken === undefined) {
-      res.throw('no auth-token')
+    const { authToken, uuid } = ctx.query as IGetApiUserInfo['IReq']['params']
+    if (authToken === undefined && uuid === undefined) {
+      res.throw('no auth-token or uuid')
       return
     }
-    const { uid } = jwt.verify(authToken, publicKey) as {
-      uid: string
+    if (authToken) {
+      const { uid } = jwt.verify(authToken, publicKey) as {
+        uid: string
+      }
+      const db = new DataBase()
+      const user = await db.find(COLLECTION_NAME, {
+        uid,
+      })
+      if (user.length < 1) {
+        res.throw('User not exists')
+        ctx.status = 403
+        return
+      }
+      res.set({
+        name: user[0].name,
+        phone: user[0].phone,
+        email: user[0].email,
+        avatar: user[0].avatar,
+      })
+    } else {
+      const db = new DataBase()
+      const user = await db.find(COLLECTION_NAME, {
+        uid: uuid,
+      })
+      if (user.length < 1) {
+        res.throw('User not exists')
+        ctx.status = 403
+        return
+      }
+      res.set({
+        name: user[0].name,
+        phone: user[0].phone,
+        email: user[0].email,
+        avatar: user[0].avatar,
+      })
     }
-    const db = new DataBase()
-    const user = await db.find(COLLECTION_NAME, {
-      uid,
-    })
-    if (user.length < 1) {
-      res.throw('User not exists')
-      ctx.status = 403
-      return
-    }
-    res.set({
-      name: user[0].name,
-      phone: user[0].phone,
-      email: user[0].email,
-      avatar: user[0].avatar,
-    })
   } catch (e) {
     res.throw(e.message)
     ctx.status = 403
